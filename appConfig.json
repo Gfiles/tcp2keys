@@ -12,7 +12,8 @@
         "8": "i",
         "9": "j"
     },
-    "server_address": "localhost",
+    "seperator" : " ",
+    "server_address": "192.168.0.209",
     "port": 24242,
     "wait_time": 1,
     "receive_buffer_size": 16

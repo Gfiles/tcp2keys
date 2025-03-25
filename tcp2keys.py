@@ -3,6 +3,8 @@ import pyautogui
 import json
 import time
 import os
+import signal
+import sys
 
 # Load configuration from appConfig.json
 config_file = 'appConfig.json'
@@ -21,6 +23,7 @@ if not os.path.exists(config_file):
             "8": "i",
             "9": "j"
         },
+        "seperator": " ",
         "server_address": "localhost",
         "port": 24242,
         "wait_time": 1,
@@ -35,43 +38,52 @@ else:
 use_key_mapping = config['use_key_mapping']
 if use_key_mapping:
     print("Key mapping is enabled")
-    key_mapping = config['key_mapping']
+key_mapping = config['key_mapping']
+seperator = config['seperator']
 server_address = (config['server_address'], config['port'])
 wait_time = config['wait_time']
 receive_buffer_size = config['receive_buffer_size']
 
-# Set up the TCP server
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.bind(server_address)
-sock.listen(1)
+def signal_handler(sig, frame):
+    print('Ctrl+C pressed, exiting...')
+    sys.exit(0)
 
-print(f"Listening for connections on {server_address}")
+signal.signal(signal.SIGINT, signal_handler)
 
 while True:
     try:
-        connection, client_address = sock.accept()
-        print(f"Connection from {client_address}")
+        # Set up the TCP server
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(server_address)
+        print(f"Connected to server at {server_address}")
+
         while True:
-            data = connection.recv(receive_buffer_size)
+            data = sock.recv(receive_buffer_size)
             if data:
                 message = data.decode('utf-8').strip()
-                if use_key_mapping and message in key_mapping:
-                    key_to_press = key_mapping[message]
-                    pyautogui.press(key_to_press)
-                    print(f"Pressed {key_to_press} for message {message}")
-                elif not use_key_mapping:
+                print(f"received: {message}") 
+                if use_key_mapping:
+                    try:
+                        key_list = message.split(seperator)
+                        #print(f"key_list {key_list}")
+                        for key in key_list:
+                            if key in key_mapping:
+                                key_to_press = key_mapping[key]
+                                pyautogui.press(key_to_press)
+                                print(f"Pressed {key_to_press}")
+                    except:
+                        pass
+                else:
                     for key in message:
                         key_to_press = key
                         pyautogui.press(key_to_press)
-                    print(f"message {message}")
-                else:
-                    print(f"Received unknown message: {message}")
+                    #print(f"message {message}")
             else:
                 break
             time.sleep(wait_time)
     except Exception as e:
         print(f"Connection failed: {e}")
     finally:
-        connection.close()
+        sock.close()
         print("Reconnecting...")
         time.sleep(1)  # Wait a bit before trying to reconnect
